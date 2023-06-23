@@ -1,0 +1,7 @@
+torchvision
+torch
+cuda-python
+opencv-python
+matplotlib
+tqdm
+einops
