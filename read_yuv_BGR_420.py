@@ -1,20 +1,40 @@
 import os
+import re
 import numpy as np
 import cv2
 
 
+
 def extract_data_from_file_name(fname):
-    parts = fname.split('_')
-    parts_len = len(parts)
-    fps = parts[parts_len - 1].split('.')[0]
-    w = parts[parts_len - 2].split('x')[0]
-    h = parts[parts_len - 2].split('x')[1]
-    parts = fname.split('\\')
-    parts_len = len(parts)
-    prefix = parts[parts_len - 1]
-    parts = prefix.split("_" + w + "x" + h + "_")
-    prefix = parts[0]
-    return prefix, int(w), int(h), int(fps)
+    """
+    This functions reads the name and the data from the video file.
+
+    Parameters:
+    fname (str): The name of the video file
+
+    Returns:
+    prefix (str): Prefix of the video file
+    w (int): width of the video file 
+    h (int): height of the video file 
+    fps (str): 
+    """
+
+    pattern = r"(.+)(_+\d+x\d+_)(.+)"
+
+    parts = re.match(pattern, fname)
+
+    prefix = os.path.basename(parts.group(1))
+    second_part = parts.group(2)
+    fps = parts.group(3)
+
+    numbers = second_part.split('_')[1]
+    w = int(numbers.split('x')[0])
+    h = int(numbers.split('x')[1])
+
+    return prefix, w, h, fps
+
+
+
 
 def  extract_frames_from_yuv_video(yuv_file_path, output_folder_path):
     """
@@ -42,9 +62,9 @@ def  extract_frames_from_yuv_video(yuv_file_path, output_folder_path):
             print("prefix=" + prefix)
             print("width=" + str(w))
             print("height=" + str(h))
-            print("framesize= " + str(frame_size))
             print("framerate=" + str(fps))
-            frame_count = 0
+            file_name = prefix + '_' + str(w) + 'x' + str(h)
+            print()
             while True:
                 # Read the next frame from the file
                 frame_data = yuv_file.read(frame_size)
@@ -53,14 +73,16 @@ def  extract_frames_from_yuv_video(yuv_file_path, output_folder_path):
 
                 # Convert the frame data to a numpy array
                 frame = np.frombuffer(frame_data, dtype=np.uint8)
-                frame = frame.reshape((int(h * 1.5), w))
+                frame = frame.reshape(int(h * 1.5), w)
 
                 # Convert the YUV frame to RGB
                 frame = cv2.cvtColor(frame, cv2.COLOR_YUV2BGR_I420)
 
                 # Save the frame as a PNG/BMP file
-                frame_path = os.path.join(output_folder_path, f"frame_{frame_count:04d}.bmp")
+                frame_name = file_name + '_' + f"frame_{frame_count:04d}.bmp"
+                frame_path = os.path.join(output_folder_path, frame_name)
                 cv2.imwrite(frame_path, frame)
+                print("Written " + frame_name + " in " + output_folder_path)
 
                 frame_count +=1
 
@@ -70,9 +92,15 @@ def  extract_frames_from_yuv_video(yuv_file_path, output_folder_path):
 
 
 def main():
-    input_file_path = "./Amazon_1280x720_30/Amazon_1280x720_30.yuv"
-    output_folder = "./Amazon_1280x720_30/frames"
-    extract_frames_from_yuv_video(input_file_path, output_folder)
+
+    source_dir = "/home/ec2-user/Dataset/raw_videos/"
+    destination_dir = "/home/ec2-user/Dataset/raw_frames/"
+
+    for element in os.listdir(source_dir):
+        element_name = os.path.splitext(os.path.basename(element))[0]
+        input_file_path = source_dir + element_name + ".yuv"
+        output_folder = destination_dir + element_name
+        extract_frames_from_yuv_video(input_file_path, output_folder)
 
 if __name__ == "__main__":
     main()

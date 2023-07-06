@@ -17,10 +17,10 @@ import model as models
 import glob    
 import torchvision.transforms.functional as TF
 
-#show the result for each image pairs.
+# Show the result for each image pairs.
 show_result = True
 
-# load model and weight
+# Load model and weight
 model = models.Change_detection()
 model = nn.DataParallel(model)
 pretrain_deeplab_path = "./model_weight_LEVIR.pth" 

@@ -16,33 +16,38 @@ from torchvision.utils import save_image
 import model as models
 import glob    
 import torchvision.transforms.functional as TF
+import re
 
-
-# Select image 
-# yuv_file_name = '6days_7nights_a1_640x272_24.yuv'             
-# img1_file = './scene_change_det/frame_0069.bmp'
-# img2_file = './scene_change_det/frame_0070.bmp'
-
-
-# Load model and weight
-# pretrain_deeplab_path = "./model_weight_LEVIR.pth"
-
-# Output directory
-output_dir = "./dataset/6days_7nights_a1_640x272_24/change_map"
 
 
 def extract_data_from_file_name(fname):
-    parts = fname.split('_')
-    parts_len = len(parts)
-    fps = parts[parts_len - 1].split('.')[0]
-    w = parts[parts_len - 2].split('x')[0]
-    h = parts[parts_len - 2].split('x')[1]
-    parts = fname.split('\\')
-    parts_len = len(parts)
-    prefix = parts[parts_len - 1]
-    parts = prefix.split("_" + w + "x" + h + "_")
-    prefix = parts[0]
-    return prefix, int(w), int(h), int(fps)
+    """
+    This functions reads the name and the data from the video file.
+
+    Parameters:
+    fname (str): The name of the video file
+
+    Returns:
+    prefix (str): Prefix of the video file
+    w (int): width of the video file 
+    h (int): height of the video file 
+    fps (str): 
+    """
+
+    pattern = r"(.+)(_+\d+x\d+_)(.+)"
+
+    parts = re.match(pattern, fname)
+
+    prefix = os.path.basename(parts.group(1))
+    second_part = parts.group(2)
+    fps = parts.group(3)
+
+    numbers = second_part.split('_')[1]
+    w = int(numbers.split('x')[0])
+    h = int(numbers.split('x')[1])
+
+    return prefix, w, h, fps
+
 
 
 def get_directory_info(directory_path):
@@ -52,7 +57,7 @@ def get_directory_info(directory_path):
 
     Parameters:
     directory_path (str): The path of the directory to be analyzed
-      """
+    """
     try:
         # Check if the directory exists
         if not os.path.isdir(directory_path):
@@ -77,15 +82,25 @@ def get_directory_info(directory_path):
 
 
 
-def cal_map(input1_path, input2_path, yuv_file_name, output_path, model_path="./model_weight_LEVIR.pth"):
+def change_map_from_video(input1_path, input2_path, yuv_file_name, output_path, model_path="./model_weight_LEVIR.pth"):
+    """
+    This fuction generates the change maps from a pair of images using a pre-trained model of SARAS-Net. 
+
+    Parameters
+    input1_path (str): The path to the first image
+    input2_path (str): The path to the second image
+    yuv_file_name (str): The name of the video file
+    output_path (str): The path to the output of the generated change map image
+    model_path (str): The path to the pretrained model
+
+    Returns:
+    Outputs the chhange maps for the two images
+    """
+        
     file1_name_no_ext = os.path.splitext(os.path.basename(input1_path))[0]
     file2_name_no_ext = os.path.splitext(os.path.basename(input2_path))[0]
 
     prefix, w, h, fps = extract_data_from_file_name(yuv_file_name)
-    # print("prefix=" + prefix)
-    # print("width=" + str(w))
-    # print("height=" + str(h))
-    # print("framerate=" + str(fps))
 
     # Set device and model
     device = torch.device("cpu")
@@ -119,7 +134,6 @@ def cal_map(input1_path, input2_path, yuv_file_name, output_path, model_path="./
 
     inputs1,input2, targets = temp_img1, temp_img2, label
     inputs1,input2,targets = inputs1.to(device),input2.to(device), targets.to(device)
-    # inputs1,inputs2,targets = Variable(inputs1.unsqueeze(0), volatile=True),Variable(input2.unsqueeze(0),volatile=True) ,Variable(targets)
     inputs1,inputs2,targets = Variable(inputs1.unsqueeze(0)),Variable(input2.unsqueeze(0)) ,Variable(targets)
 
 
@@ -136,7 +150,6 @@ def cal_map(input1_path, input2_path, yuv_file_name, output_path, model_path="./
 
     # output
     output_file_name = "map_" + file1_name_no_ext + "_" + file2_name_no_ext + ".bmp"
-    # cv2.imwrite(output_path + "pred.jpg", pred)
     cv2.imwrite(os.path.join(output_path, output_file_name), pred)
     print("Change map for: {} - {}".format(file1_name_no_ext, file2_name_no_ext))
 
@@ -150,9 +163,5 @@ if __name__ == "__main__":
     video_dir_path = "./dataset/6days_7nights_a1_640x272_24/frames"
     n_elem, name_elem, path_elem = get_directory_info(video_dir_path)
 
-    # print("Number of Elements: ", n_elem)
-    # print("List of elements: ", name_elem)
-    # print("Element path: ", path_elem)
-
     for i in range(0, n_elem - 1):
-        cal_map(path_elem[i], path_elem[i+1], yuv_file_name, output_dir)
+        change_map_from_video(path_elem[i], path_elem[i+1], yuv_file_name, output_dir)
